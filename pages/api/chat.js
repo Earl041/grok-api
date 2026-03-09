@@ -1,32 +1,34 @@
 /**
  * POST /api/chat
  * 
- * Chat dengan Grok AI
+ * Chat dengan Grok AI (grok-fast) + Internet via server-side search/scrape
  * 
  * Body:
  *   {
  *     "message": "Hello Grok",
  *     "userId": "user123",        // Optional, untuk session
- *     "model": "grok-3",          // Optional: grok-3 (default), grok-2, grok-fast
  *     "files": [{                 // Optional
  *       "name": "file.txt",
  *       "data": "base64...",
  *       "mimeType": "text/plain"
  *     }],
- *     "enableSearch": true,       // Optional, default ON (only for grok-3/grok-2)
- *     "enableScrape": true        // Optional, default ON (only for grok-3/grok-2)
+ *     "enableSearch": true,       // Optional, auto web search (default ON)
+ *     "enableScrape": true,       // Optional, auto scrape URLs (default ON)
+ *     "searchQuery": "AI news",   // Optional, force search query
+ *     "scrapeUrls": ["https://..."] // Optional, force scrape URLs
  *   }
  * 
- * Models:
- *   - grok-3: Most capable, full internet access (default)
- *   - grok-2: Balanced speed and capability, internet access
- *   - grok-fast: Fastest response, NO internet
+ * Features:
+ *   - Uses grok-fast (fastest model)
+ *   - Internet access via our own DuckDuckGo search
+ *   - Auto scrape any URLs in message
+ *   - Results injected into prompt context
  * 
  * curl:
  *   curl -X POST https://your-domain/api/chat \
  *     -H "Content-Type: application/json" \
  *     -H "Authorization: Bearer YOUR_API_KEY" \
- *     -d '{"message": "Hello", "model": "grok-3"}'
+ *     -d '{"message": "Search latest AI news"}'
  */
 
 const { chatWithGrok } = require('../../lib/grok');
@@ -75,10 +77,11 @@ export default async function handler(req, res) {
   const { 
     message, 
     userId = 'default',
-    model = 'grok-3',  // default ke model paling power
     files = [],
-    enableSearch = true,  // default ON
-    enableScrape = true,  // default ON
+    enableSearch = true,   // auto search bila detect keywords
+    enableScrape = true,   // auto scrape URLs dalam message
+    searchQuery = null,    // force search specific query
+    scrapeUrls = [],       // force scrape specific URLs
   } = req.body || {};
   
   if (!message || typeof message !== 'string' || !message.trim()) {
@@ -101,10 +104,11 @@ export default async function handler(req, res) {
     const result = await chatWithGrok({
       message: message.trim(),
       userId,
-      model,
       files,
       enableSearch,
       enableScrape,
+      searchQuery,
+      scrapeUrls,
     });
     
     const duration = ((Date.now() - startTime) / 1000).toFixed(1);
@@ -113,10 +117,10 @@ export default async function handler(req, res) {
       success: true,
       response: result.response,
       model: result.model,
-      modelInfo: result.modelInfo,
       features: result.features,
       conversationId: result.conversationId || null,
       webResults: result.webResults || [],
+      scrapedContent: result.scrapedContent || [],
       extractedFiles: result.extractedFiles || [],
       duration: `${duration}s`,
     });

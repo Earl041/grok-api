@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
 
@@ -7,30 +7,31 @@ const endpoints = [
     method: 'POST',
     path: '/api/chat',
     title: 'Chat',
-    description: 'Chat dengan Grok AI. Default grok-3 (internet access). Pilih model: grok-3 (full), grok-2 (balanced), grok-fast (no internet)',
+    description: 'Chat dengan Grok AI (grok-fast). Internet access via server-side DuckDuckGo search dan web scrape.',
     body: {
-      message: 'Hello Grok! Search latest news about AI.',
+      message: 'Search latest AI news 2024',
       userId: 'user123',
-      model: 'grok-3',
       files: [{ name: 'file.txt', data: 'base64...', mimeType: 'text/plain' }],
       enableSearch: true,
       enableScrape: true,
+      searchQuery: null,
+      scrapeUrls: [],
     },
     response: {
       success: true,
-      response: 'Here are the latest AI news...',
-      model: 'grok-3',
-      modelInfo: { name: 'Grok 3', hasInternet: true },
-      features: { search: true, scrape: true },
+      response: 'Based on the search results, here are the latest AI news...',
+      model: 'grok-fast',
+      features: { search: true, scrape: false },
       conversationId: 'conv_123',
-      webResults: [{ title: 'AI News', url: 'https://...' }],
+      webResults: [{ url: 'https://...', title: 'AI News', snippet: '...' }],
+      scrapedContent: [],
       extractedFiles: [],
       duration: '3.2s',
     },
-    curl: `curl -X POST https://YOUR_DOMAIN/api/chat \\
+    curl: `curl -X POST {BASE_URL}/api/chat \\
   -H "Content-Type: application/json" \\
   -H "Authorization: Bearer YOUR_API_KEY" \\
-  -d '{"message": "Search latest AI news", "model": "grok-3"}'`,
+  -d '{"message": "Search latest AI news"}'`,
   },
   {
     method: 'POST',
@@ -50,7 +51,7 @@ const endpoints = [
       error: '',
       exitCode: 0,
     },
-    curl: `curl -X POST https://YOUR_DOMAIN/api/execute \\
+    curl: `curl -X POST {BASE_URL}/api/execute \\
   -H "Content-Type: application/json" \\
   -H "Authorization: Bearer YOUR_API_KEY" \\
   -d '{"language": "python", "code": "print(1+1)"}'`,
@@ -66,7 +67,7 @@ const endpoints = [
       count: 50,
       languages: [{ language: 'python', version: '3.10.0', aliases: ['py'] }],
     },
-    curl: `curl https://YOUR_DOMAIN/api/languages`,
+    curl: `curl {BASE_URL}/api/languages`,
   },
   {
     method: 'GET',
@@ -82,7 +83,7 @@ const endpoints = [
       files: ['doc.pdf', 'code.py'],
       createdAt: 1699999999999,
     },
-    curl: `curl "https://YOUR_DOMAIN/api/session?userId=user123" \\
+    curl: `curl "{BASE_URL}/api/session?userId=user123" \\
   -H "Authorization: Bearer YOUR_API_KEY"`,
   },
   {
@@ -95,7 +96,7 @@ const endpoints = [
       success: true,
       message: 'Session "user123" cleared.',
     },
-    curl: `curl -X DELETE "https://YOUR_DOMAIN/api/session?userId=user123" \\
+    curl: `curl -X DELETE "{BASE_URL}/api/session?userId=user123" \\
   -H "Authorization: Bearer YOUR_API_KEY"`,
   },
   {
@@ -109,7 +110,7 @@ const endpoints = [
       userId: 'user123',
       files: ['doc.pdf', 'image.png'],
     },
-    curl: `curl "https://YOUR_DOMAIN/api/files?userId=user123" \\
+    curl: `curl "{BASE_URL}/api/files?userId=user123" \\
   -H "Authorization: Bearer YOUR_API_KEY"`,
   },
   {
@@ -119,7 +120,7 @@ const endpoints = [
     description: 'Download specific file dari session user',
     body: null,
     response: 'Binary file data',
-    curl: `curl "https://YOUR_DOMAIN/api/files?userId=user123&filename=doc.pdf" \\
+    curl: `curl "{BASE_URL}/api/files?userId=user123&filename=doc.pdf" \\
   -H "Authorization: Bearer YOUR_API_KEY" \\
   --output doc.pdf`,
   },
@@ -138,7 +139,7 @@ const endpoints = [
       message: 'File "test.txt" saved.',
       size: 12,
     },
-    curl: `curl -X POST https://YOUR_DOMAIN/api/files \\
+    curl: `curl -X POST {BASE_URL}/api/files \\
   -H "Content-Type: application/json" \\
   -H "Authorization: Bearer YOUR_API_KEY" \\
   -d '{"userId":"user123","filename":"test.txt","data":"SGVsbG8="}'`,
@@ -155,7 +156,7 @@ const endpoints = [
       model: 'grok-fast',
       features: ['chat', 'file-attachments', 'zip-auto-extract', 'code-execution'],
     },
-    curl: `curl https://YOUR_DOMAIN/api/health`,
+    curl: `curl {BASE_URL}/api/health`,
   },
 ];
 
@@ -163,13 +164,13 @@ const features = [
   { icon: '💬', title: 'Chat', desc: 'Hantar text, Grok jawab' },
   { icon: '📎', title: 'File Attachments', desc: 'Any file type + caption' },
   { icon: '🗜️', title: 'ZIP Auto-Extract', desc: 'Recursive! Zip dalam zip' },
-  { icon: '🔍', title: 'Auto Search', desc: 'Grok decide bila perlu Google' },
-  { icon: '🌐', title: 'Auto Scrape', desc: 'Grok bukak website sendiri' },
+  { icon: '🔍', title: 'Auto Search', desc: 'DuckDuckGo search, inject ke context' },
+  { icon: '🌐', title: 'Auto Scrape', desc: 'Scrape URL dalam message' },
   { icon: '⚡', title: 'Code Execution', desc: '50+ languages via Piston' },
   { icon: '📤', title: 'Send File Back', desc: 'Grok boleh return files' },
   { icon: '👥', title: 'Per-User Session', desc: 'Isolated conversations' },
   { icon: '🧹', title: 'Auto Cleanup', desc: 'Files auto deleted' },
-  { icon: '🚀', title: 'Multi-Model', desc: 'grok-3, grok-2, grok-fast' },
+  { icon: '🚀', title: 'grok-fast', desc: 'Fastest model + our internet' },
 ];
 
 function MethodBadge({ method }) {
@@ -194,9 +195,9 @@ function MethodBadge({ method }) {
   );
 }
 
-function EndpointCard({ endpoint, domain }) {
+function EndpointCard({ endpoint, baseUrl }) {
   const [expanded, setExpanded] = useState(false);
-  const curl = endpoint.curl.replace(/YOUR_DOMAIN/g, domain || 'YOUR_DOMAIN');
+  const curl = endpoint.curl.replace(/\{BASE_URL\}/g, baseUrl);
 
   return (
     <div style={{
@@ -306,7 +307,14 @@ function EndpointCard({ endpoint, domain }) {
 }
 
 export default function Docs() {
-  const [domain, setDomain] = useState('');
+  const [baseUrl, setBaseUrl] = useState('');
+  
+  // Auto-detect base URL dari browser
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setBaseUrl(window.location.origin);
+    }
+  }, []);
 
   return (
     <>
@@ -360,7 +368,7 @@ export default function Docs() {
               </div>
               <div>
                 <h1 style={{ fontSize: '16px', fontWeight: '600', color: '#fff' }}>Grok API</h1>
-                <p style={{ fontSize: '11px', color: '#666' }}>v2.0 • grok-3 / grok-2 / grok-fast</p>
+                <p style={{ fontSize: '11px', color: '#666' }}>v2.0 • grok-fast + server-side internet</p>
               </div>
             </div>
             <Link href="/" style={{
@@ -401,33 +409,26 @@ export default function Docs() {
             </div>
           </section>
 
-          {/* Domain Input */}
+          {/* Base URL Info */}
           <section style={{
-            background: '#151515',
-            border: '1px solid #2a2a2a',
+            background: '#0f1f0f',
+            border: '1px solid #1a3a1a',
             borderRadius: '8px',
             padding: '16px',
             marginBottom: '24px',
           }}>
-            <label style={{ display: 'block', fontSize: '13px', fontWeight: '500', marginBottom: '8px' }}>
-              Your Domain (for curl examples)
-            </label>
-            <input
-              type="text"
-              value={domain}
-              onChange={(e) => setDomain(e.target.value)}
-              placeholder="your-app.vercel.app"
-              style={{
-                width: '100%',
-                background: '#0a0a0a',
-                border: '1px solid #333',
-                borderRadius: '6px',
-                padding: '10px 14px',
-                fontSize: '14px',
-                color: '#e0e0e0',
-                outline: 'none',
-              }}
-            />
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ color: '#4ade80', fontSize: '14px' }}>Base URL:</span>
+              <code style={{ 
+                background: '#151515', 
+                padding: '6px 12px', 
+                borderRadius: '4px',
+                fontSize: '13px',
+                color: '#4ade80',
+              }}>
+                {baseUrl || 'Loading...'}
+              </code>
+            </div>
           </section>
 
           {/* Endpoints */}
