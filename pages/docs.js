@@ -7,25 +7,30 @@ const endpoints = [
     method: 'POST',
     path: '/api/chat',
     title: 'Chat',
-    description: 'Chat dengan Grok AI menggunakan model grok-fast (no internet, fastest)',
+    description: 'Chat dengan Grok AI. Default grok-3 (internet access). Pilih model: grok-3 (full), grok-2 (balanced), grok-fast (no internet)',
     body: {
-      message: 'Hello Grok!',
+      message: 'Hello Grok! Search latest news about AI.',
       userId: 'user123',
+      model: 'grok-3',
       files: [{ name: 'file.txt', data: 'base64...', mimeType: 'text/plain' }],
-      enableSearch: false,
+      enableSearch: true,
+      enableScrape: true,
     },
     response: {
       success: true,
-      response: 'Hello! How can I help you?',
-      model: 'grok-fast',
+      response: 'Here are the latest AI news...',
+      model: 'grok-3',
+      modelInfo: { name: 'Grok 3', hasInternet: true },
+      features: { search: true, scrape: true },
       conversationId: 'conv_123',
+      webResults: [{ title: 'AI News', url: 'https://...' }],
       extractedFiles: [],
-      duration: '2.5s',
+      duration: '3.2s',
     },
     curl: `curl -X POST https://YOUR_DOMAIN/api/chat \\
   -H "Content-Type: application/json" \\
   -H "Authorization: Bearer YOUR_API_KEY" \\
-  -d '{"message": "Hello Grok!"}'`,
+  -d '{"message": "Search latest AI news", "model": "grok-3"}'`,
   },
   {
     method: 'POST',
@@ -158,11 +163,13 @@ const features = [
   { icon: '💬', title: 'Chat', desc: 'Hantar text, Grok jawab' },
   { icon: '📎', title: 'File Attachments', desc: 'Any file type + caption' },
   { icon: '🗜️', title: 'ZIP Auto-Extract', desc: 'Recursive! Zip dalam zip' },
+  { icon: '🔍', title: 'Auto Search', desc: 'Grok decide bila perlu Google' },
+  { icon: '🌐', title: 'Auto Scrape', desc: 'Grok bukak website sendiri' },
   { icon: '⚡', title: 'Code Execution', desc: '50+ languages via Piston' },
   { icon: '📤', title: 'Send File Back', desc: 'Grok boleh return files' },
   { icon: '👥', title: 'Per-User Session', desc: 'Isolated conversations' },
   { icon: '🧹', title: 'Auto Cleanup', desc: 'Files auto deleted' },
-  { icon: '🚀', title: 'grok-fast Model', desc: 'Fastest, no internet' },
+  { icon: '🚀', title: 'Multi-Model', desc: 'grok-3, grok-2, grok-fast' },
 ];
 
 function MethodBadge({ method }) {
@@ -353,7 +360,7 @@ export default function Docs() {
               </div>
               <div>
                 <h1 style={{ fontSize: '16px', fontWeight: '600', color: '#fff' }}>Grok API</h1>
-                <p style={{ fontSize: '11px', color: '#666' }}>v2.0 • grok-fast</p>
+                <p style={{ fontSize: '11px', color: '#666' }}>v2.0 • grok-3 / grok-2 / grok-fast</p>
               </div>
             </div>
             <Link href="/" style={{
