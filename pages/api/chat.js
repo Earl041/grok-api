@@ -1,40 +1,57 @@
 /**
  * POST /api/chat
  * 
- * Chat dengan Grok AI melalui browser.
+ * Chat dengan Grok AI (grok-fast model)
  * 
- * Headers:
- *   Authorization: Bearer <API_KEY>
+ * Body:
+ *   {
+ *     "message": "Hello Grok",
+ *     "userId": "user123",        // Optional, untuk session
+ *     "files": [{                 // Optional
+ *       "name": "file.txt",
+ *       "data": "base64...",
+ *       "mimeType": "text/plain"
+ *     }],
+ *     "enableSearch": false,      // Optional
+ *     "enableScrape": false       // Optional
+ *   }
  * 
- * Body (JSON):
- *   { "message": "Apa tu AI?" }
- * 
- * Response (JSON):
- *   { "success": true, "response": "AI ialah...", "method": "fetch" }
+ * curl:
+ *   curl -X POST https://your-domain/api/chat \
+ *     -H "Content-Type: application/json" \
+ *     -H "Authorization: Bearer YOUR_API_KEY" \
+ *     -d '{"message": "Hello"}'
  */
 
 const { chatWithGrok } = require('../../lib/grok');
 
+export const config = {
+  api: {
+    bodyParser: {
+      sizeLimit: '50mb', // Support large file uploads
+    },
+  },
+  maxDuration: 60,
+};
+
 export default async function handler(req, res) {
-  // CORS headers
+  // CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   
-  // Handle preflight
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
   
-  // POST only
   if (req.method !== 'POST') {
     return res.status(405).json({ 
       success: false, 
-      error: 'Method not allowed. Guna POST.' 
+      error: 'Method not allowed. Use POST.' 
     });
   }
   
-  // ---- Auth check ----
+  // Auth check
   const apiKey = process.env.API_KEY;
   if (apiKey) {
     const authHeader = req.headers.authorization || '';
@@ -43,47 +60,60 @@ export default async function handler(req, res) {
     if (token !== apiKey) {
       return res.status(401).json({ 
         success: false, 
-        error: 'API key salah atau tiada. Sertakan header: Authorization: Bearer <key>' 
+        error: 'Invalid or missing API key.' 
       });
     }
   }
   
-  // ---- Parse body ----
-  const { message } = req.body || {};
+  // Parse body
+  const { 
+    message, 
+    userId = 'default',
+    files = [],
+    enableSearch = false,
+    enableScrape = false,
+  } = req.body || {};
   
   if (!message || typeof message !== 'string' || !message.trim()) {
     return res.status(400).json({ 
       success: false, 
-      error: 'Field "message" diperlukan.' 
+      error: 'Field "message" is required.' 
     });
   }
   
-  if (message.length > 10000) {
+  if (message.length > 50000) {
     return res.status(400).json({ 
       success: false, 
-      error: 'Message terlalu panjang (max 10,000 aksara).' 
+      error: 'Message too long (max 50,000 chars).' 
     });
   }
   
-  // ---- Chat dengan Grok ----
   const startTime = Date.now();
   
   try {
-    const result = await chatWithGrok(message.trim());
+    const result = await chatWithGrok({
+      message: message.trim(),
+      userId,
+      files,
+      enableSearch,
+      enableScrape,
+    });
+    
     const duration = ((Date.now() - startTime) / 1000).toFixed(1);
     
     return res.status(200).json({
       success: true,
       response: result.response,
-      method: result.method,
+      model: result.model,
       conversationId: result.conversationId || null,
+      webResults: result.webResults || [],
+      extractedFiles: result.extractedFiles || [],
       duration: `${duration}s`,
     });
     
   } catch (error) {
     const duration = ((Date.now() - startTime) / 1000).toFixed(1);
     
-    // Try parse structured error
     let errorInfo;
     try {
       errorInfo = JSON.parse(error.message);
