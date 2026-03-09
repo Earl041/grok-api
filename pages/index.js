@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import Head from 'next/head';
+import Link from 'next/link';
 
 export default function Home() {
   const [messages, setMessages] = useState([]);
@@ -112,6 +113,7 @@ export default function Home() {
             <h1 style={styles.title}>Grok API</h1>
           </div>
           <div style={styles.headerRight}>
+            <Link href="/docs" style={styles.btnDocs}>📚 API Docs</Link>
             <button onClick={clearChat} style={styles.btnClear}>🗑️ Clear</button>
             <button 
               onClick={() => setShowSettings(!showSettings)} 
@@ -245,6 +247,17 @@ const styles = {
     fontSize: '18px',
     fontWeight: '600',
     color: '#fff',
+  },
+  btnDocs: {
+    background: '#2563eb',
+    color: '#fff',
+    border: 'none',
+    padding: '6px 12px',
+    borderRadius: '6px',
+    cursor: 'pointer',
+    fontSize: '13px',
+    textDecoration: 'none',
+    fontWeight: '500',
   },
   btnClear: {
     background: '#222',
